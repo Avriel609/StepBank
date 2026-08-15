@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Центробанк Степлеррейха</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f8fafc;
+            --accent-color: #38bdf8;
+            --danger-color: #ef4444;
+            --success-color: #22c55e;
+            --gold-color: #f59e0b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 16px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 22px;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .header p {
+            margin: 5px 0 0 0;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            border: 1px solid #334155;
+        }
+
+        .balance-card {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid var(--accent-color);
+            text-align: center;
+        }
+
+        .balance-title {
+            font-size: 14px;
+            color: #94a3b8;
+        }
+
+        .balance-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--text-color);
+            margin: 10px 0;
+        }
+
+        .balance-currency {
+            color: var(--accent-color);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .stat-item {
+            background: #0f172a;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-val {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--gold-color);
+        }
+
+        .stat-lbl {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        .btn {
+            width: 100%;
+            background: var(--accent-color);
+            color: #0f172a;
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .btn-gold {
+            background: var(--gold-color);
+            color: #0f172a;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: white;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        .admin-panel {
+            border: 1px dashed var(--gold-color);
+            display: none; /* Покажется только админу */
+        }
+
+        .admin-title {
+            color: var(--gold-color);
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🏛️ ЦЕНТРОБАНК СТЕПЛЕРРЕЙХА</h1>
+        <p>Официальный финансовый портал</p>
+    </div>
+
+    <!-- Карточка баланса -->
+    <div class="card balance-card">
+        <div class="balance-title">Ваш личный счет</div>
+        <div class="balance-value" id="userBalance">25 000 <span class="balance-currency">STL</span></div>
+        <div style="font-size: 12px; color: #94a3b8;" id="usernameDisplay">Гражданин: Загрузка...</div>
+    </div>
+
+    <!-- Макроэкономика ЦБ -->
+    <div class="card">
+        <div style="font-weight: bold; margin-bottom: 10px; color: var(--accent-color);">📊 Экономические показатели</div>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-val" id="statRate">7.5%</div>
+                <div class="stat-lbl">Ключевая ставка</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-val" id="statInf">0.0%</div>
+                <div class="stat-lbl">Инфляция</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-val" id="statBBD">1 000</div>
+                <div class="stat-lbl">ББД (доход)</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-val" id="statTax">1 000</div>
+                <div class="stat-lbl">Налог</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Перевод Степлюринов -->
+    <div class="card">
+        <div style="font-weight: bold; margin-bottom: 10px;">💸 Перевести Степлюрины</div>
+        <input type="text" id="transferTarget" placeholder="@username получателя">
+        <input type="number" id="transferAmount" placeholder="Сумма (STL)">
+        <button class="btn" onclick="sendMoney()">Отправить Степлюрины</button>
+    </div>
+
+    <!-- АДМИН ПАНЕЛЬ (Печатный станок Главы ЦБ) -->
+    <div class="card admin-panel" id="adminPanel">
+        <div class="admin-title">👑 КАБИНЕТ ГЛАВЫ ЦЕНТРОБАНКА</div>
+        
+        <div style="font-size: 13px; margin-bottom: 8px;">🖨️ Печатный станок (Mint)</div>
+        <input type="number" id="mintAmount" placeholder="Количество STL для эмиссии">
+        <button class="btn btn-gold" onclick="mintMoney()">Напечатать монеты в Казну</button>
+
+        <hr style="border-color: #334155; margin: 15px 0;">
+
+        <div style="font-size: 13px; margin-bottom: 8px;">⚙️ Регулирование макроэкономики</div>
+        <input type="number" id="newRate" placeholder="Новая ключевая ставка (%)">
+        <input type="number" id="newInf" placeholder="Уровень инфляции (%)">
+        <button class="btn" onclick="updateStats()">Обновить показатели ЦБ</button>
+
+        <hr style="border-color: #334155; margin: 15px 0;">
+
+        <div style="font-size: 13px; margin-bottom: 8px;">📢 Выплаты и Налоги</div>
+        <button class="btn" style="background: #22c55e; color: white;" onclick="runBBD()">Выдать ББД всем гражданам</button>
+        <button class="btn btn-danger" onclick="runTax()">Собрать Налог со всех</button>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        // ТВОЙ TELEGRAM ID
+        const ADMIN_ID = 5635709946;
+
+        const user = tg.initDataUnsafe?.user || { id: 5635709946, username: "Stepler_Leader", first_name: "Глава ЦБ" };
+
+        document.getElementById('usernameDisplay').innerText = `Гражданин: @${user.username || user.first_name}`;
+
+        // Проверка на Админа
+        if (Number(user.id) === ADMIN_ID) {
+            document.getElementById('adminPanel').style.display = 'block';
+        }
+
+        function sendMoney() {
+            const target = document.getElementById('transferTarget').value;
+            const amount = document.getElementById('transferAmount').value;
+            if(!target || !amount) return alert('Заполните все поля!');
+            
+            alert(`Успешно переведено ${amount} STL гражданину ${target}!`);
+            tg.HapticFeedback.notificationOccurred('success');
+        }
+
+        function mintMoney() {
+            const amount = document.getElementById('mintAmount').value;
+            alert(`Печатный станок ЦБ запустился! Напечатано ${amount} STL.`);
+        }
+
+        function updateStats() {
+            const rate = document.getElementById('newRate').value;
+            const inf = document.getElementById('newInf').value;
+            if(rate) document.getElementById('statRate').innerText = rate + '%';
+            if(inf) document.getElementById('statInf').innerText = inf + '%';
+            alert('Экономические показатели ЦБ успешно обновлены!');
+        }
+
+        function runBBD() {
+            alert('Безусловный базовый доход успешно выплачен всем гражданам!');
+        }
+
+        function runTax() {
+            alert('Подушевой налог удержан в Казну Степлеррейха!');
+        }
+    </script>
+</body>
+</html>
