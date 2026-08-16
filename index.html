@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Центробанк Степлеррейха</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Firebase JS SDK (Compat mode) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -22,6 +25,7 @@
             color: var(--text-color);
             margin: 0;
             padding: 16px;
+            padding-bottom: 40px;
         }
 
         .header {
@@ -110,6 +114,11 @@
             font-size: 14px;
             cursor: pointer;
             margin-top: 10px;
+            transition: opacity 0.2s;
+        }
+
+        .btn:active {
+            opacity: 0.8;
         }
 
         .btn-danger {
@@ -131,11 +140,12 @@
             color: white;
             margin-bottom: 10px;
             box-sizing: border-box;
+            font-size: 14px;
         }
 
         .admin-panel {
             border: 1px dashed var(--gold-color);
-            display: none; /* Покажется только админу */
+            display: none; /* Покажется админу */
         }
 
         .admin-title {
@@ -145,7 +155,32 @@
             margin-bottom: 12px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            justify-content: space-between;
+        }
+
+        .tx-list {
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+
+        .tx-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #334155;
+        }
+
+        .tx-plus { color: var(--success-color); }
+        .tx-minus { color: var(--danger-color); }
+
+        .pin-btn {
+            background: transparent;
+            border: none;
+            color: #475569;
+            font-size: 11px;
+            cursor: pointer;
+            margin-top: 5px;
         }
     </style>
 </head>
@@ -159,8 +194,9 @@
     <!-- Карточка баланса -->
     <div class="card balance-card">
         <div class="balance-title">Ваш личный счет</div>
-        <div class="balance-value" id="userBalance">25 000 <span class="balance-currency">STL</span></div>
+        <div class="balance-value" id="userBalance">... <span class="balance-currency">STL</span></div>
         <div style="font-size: 12px; color: #94a3b8;" id="usernameDisplay">Гражданин: Загрузка...</div>
+        <button class="pin-btn" onclick="askPin()">🔑 Ввести ПИН Главы ЦБ</button>
     </div>
 
     <!-- Макроэкономика ЦБ -->
@@ -189,77 +225,272 @@
     <!-- Перевод Степлюринов -->
     <div class="card">
         <div style="font-weight: bold; margin-bottom: 10px;">💸 Перевести Степлюрины</div>
-        <input type="text" id="transferTarget" placeholder="@username получателя">
+        <input type="text" id="transferTarget" placeholder="@username (без @, например: ivan)">
         <input type="number" id="transferAmount" placeholder="Сумма (STL)">
         <button class="btn" onclick="sendMoney()">Отправить Степлюрины</button>
     </div>
 
+    <!-- История транзакций -->
+    <div class="card">
+        <div style="font-weight: bold; margin-bottom: 10px; color: #94a3b8;">📜 История операций</div>
+        <div class="tx-list" id="txHistory">
+            <div style="color: #64748b; text-align: center;">Загрузка истории...</div>
+        </div>
+    </div>
+
     <!-- АДМИН ПАНЕЛЬ (Печатный станок Главы ЦБ) -->
     <div class="card admin-panel" id="adminPanel">
-        <div class="admin-title">👑 КАБИНЕТ ГЛАВЫ ЦЕНТРОБАНКА</div>
+        <div class="admin-title">
+            <span>👑 КАБИНЕТ ГЛАВЫ ЦЕНТРОБАНКА</span>
+        </div>
         
-        <div style="font-size: 13px; margin-bottom: 8px;">🖨️ Печатный станок (Mint)</div>
-        <input type="number" id="mintAmount" placeholder="Количество STL для эмиссии">
-        <button class="btn btn-gold" onclick="mintMoney()">Напечатать монеты в Казну</button>
+        <div style="font-size: 13px; margin-bottom: 8px;">🖨️ Печатный станок (Эмиссия на свой счет)</div>
+        <input type="number" id="mintAmount" placeholder="Количество STL для выпуска">
+        <button class="btn btn-gold" onclick="mintMoney()">Напечатать Степлюрины</button>
 
         <hr style="border-color: #334155; margin: 15px 0;">
 
         <div style="font-size: 13px; margin-bottom: 8px;">⚙️ Регулирование макроэкономики</div>
-        <input type="number" id="newRate" placeholder="Новая ключевая ставка (%)">
-        <input type="number" id="newInf" placeholder="Уровень инфляции (%)">
-        <button class="btn" onclick="updateStats()">Обновить показатели ЦБ</button>
+        <input type="number" id="newRate" placeholder="Ключевая ставка (%)">
+        <input type="number" id="newInf" placeholder="Инфляция (%)">
+        <input type="number" id="newBBD" placeholder="Размер ББД (STL)">
+        <input type="number" id="newTax" placeholder="Размер Налога (STL)">
+        <button class="btn" onclick="updateStats()">Обновить параметры ЦБ</button>
 
         <hr style="border-color: #334155; margin: 15px 0;">
 
-        <div style="font-size: 13px; margin-bottom: 8px;">📢 Выплаты и Налоги</div>
-        <button class="btn" style="background: #22c55e; color: white;" onclick="runBBD()">Выдать ББД всем гражданам</button>
-        <button class="btn btn-danger" onclick="runTax()">Собрать Налог со всех</button>
+        <div style="font-size: 13px; margin-bottom: 8px;">📢 Выплаты и Сборы</div>
+        <button class="btn" style="background: #22c55e; color: white;" onclick="runBBD()">Выплатить ББД всем гражданам</button>
+        <button class="btn btn-danger" onclick="runTax()">Собрать Налог со всех граждан</button>
     </div>
 
     <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
+        // 1. ИНИЦИАЛИЗАЦИЯ FIREBASE
+        const firebaseConfig = {
+          apiKey: "AIzaSyD0OaGUYyCGFhSuPq72s6fWvnXlAsBGAnY",
+          authDomain: "stepbank-88208.firebaseapp.com",
+          databaseURL: "https://stepbank-88208-default-rtdb.europe-west1.firebasedatabase.app",
+          projectId: "stepbank-88208",
+          storageBucket: "stepbank-88208.firebasestorage.app",
+          messagingSenderId: "453754441602",
+          appId: "1:453754441602:web:20dc4c0cfd5944e446899b",
+          measurementId: "G-7YZWCZNK3X"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-        // ТВОЙ TELEGRAM ID
+        // 2. ДАННЫЕ ПОЛЬЗОВАТЕЛЯ И АДМИНА
+        const tg = window.Telegram?.WebApp;
+        if(tg) tg.expand();
+
         const ADMIN_ID = 5635709946;
+        const ADMIN_PIN = "7777"; // Секретный ПИН для входа
 
-        const user = tg.initDataUnsafe?.user || { id: 5635709946, username: "Stepler_Leader", first_name: "Глава ЦБ" };
-
-        document.getElementById('usernameDisplay').innerText = `Гражданин: @${user.username || user.first_name}`;
-
-        // Проверка на Админа
-        if (Number(user.id) === ADMIN_ID) {
-            document.getElementById('adminPanel').style.display = 'block';
+        let tgUser = tg?.initDataUnsafe?.user;
+        
+        // Если зашли через обычный браузер или TG скрыл данные:
+        if (!tgUser || !tgUser.id) {
+            let savedName = localStorage.getItem('stepler_username') || ('citizen_' + Math.floor(Math.random()*1000));
+            tgUser = { id: savedName, username: savedName, first_name: savedName };
         }
 
-        function sendMoney() {
-            const target = document.getElementById('transferTarget').value;
-            const amount = document.getElementById('transferAmount').value;
-            if(!target || !amount) return alert('Заполните все поля!');
-            
-            alert(`Успешно переведено ${amount} STL гражданину ${target}!`);
-            tg.HapticFeedback.notificationOccurred('success');
+        const rawUsername = (tgUser.username || tgUser.first_name || 'user_' + tgUser.id).toLowerCase().replace(/[^a-z0-0_]/g, '');
+        const userId = rawUsername;
+
+        document.getElementById('usernameDisplay').innerText = `Гражданин: @${rawUsername}`;
+
+        // Включение Админки
+        function checkAdminAccess() {
+            if (Number(tgUser.id) === ADMIN_ID || localStorage.getItem('is_admin') === 'true') {
+                document.getElementById('adminPanel').style.display = 'block';
+            }
+        }
+        checkAdminAccess();
+
+        function askPin() {
+            let pin = prompt("Введите ПИН-код Главы ЦБ:");
+            if (pin === ADMIN_PIN) {
+                localStorage.setItem('is_admin', 'true');
+                document.getElementById('adminPanel').style.display = 'block';
+                alert("Доступ Главы ЦБ активирован!");
+            } else {
+                alert("Неверный ПИН-код!");
+            }
         }
 
-        function mintMoney() {
-            const amount = document.getElementById('mintAmount').value;
-            alert(`Печатный станок ЦБ запустился! Напечатано ${amount} STL.`);
+        // 3. ЖИВАЯ СИНХРОНИЗАЦИЯ БАЛАНСА И ДАННЫХ
+        const userRef = db.ref('users/' + userId);
+
+        // Регистрация нового пользователя
+        userRef.child('balance').transaction((currentBalance) => {
+            if (currentBalance === null) {
+                return 25000; // Стартовый грант всем новым гражданам
+            }
+            return currentBalance;
+        });
+        userRef.child('username').set(rawUsername);
+
+        // Слушатель баланса в реальном времени
+        userRef.child('balance').on('value', (snapshot) => {
+            const val = snapshot.val() || 0;
+            document.getElementById('userBalance').innerHTML = `${val.toLocaleString('ru-RU')} <span class="balance-currency">STL</span>`;
+        });
+
+        // Слушатель глобальных показателей ЦБ
+        const statsRef = db.ref('global_stats');
+        statsRef.on('value', (snapshot) => {
+            const stats = snapshot.val() || { rate: 7.5, inf: 0.0, bbd: 1000, tax: 1000 };
+            document.getElementById('statRate').innerText = stats.rate + '%';
+            document.getElementById('statInf').innerText = stats.inf + '%';
+            document.getElementById('statBBD').innerText = Number(stats.bbd).toLocaleString('ru-RU');
+            document.getElementById('statTax').innerText = Number(stats.tax).toLocaleString('ru-RU');
+        });
+
+        // Слушатель истории транзакций
+        db.ref('transactions/' + userId).limitToLast(10).on('value', (snapshot) => {
+            const txContainer = document.getElementById('txHistory');
+            txContainer.innerHTML = '';
+            const data = snapshot.val();
+            if (!data) {
+                txContainer.innerHTML = '<div style="color: #64748b; text-align: center;">Транзакций пока нет</div>';
+                return;
+            }
+            const items = Object.values(data).reverse();
+            items.forEach(tx => {
+                const div = document.createElement('div');
+                div.className = 'tx-item';
+                const isPlus = tx.type === 'in';
+                div.innerHTML = `
+                    <span>${tx.note}</span>
+                    <span class="${isPlus ? 'tx-plus' : 'tx-minus'}">${isPlus ? '+' : '-'}${Number(tx.amount).toLocaleString('ru-RU')} STL</span>
+                `;
+                txContainer.appendChild(div);
+            });
+        });
+
+        // 4. НАСТОЯЩИЙ ПЕРЕВОД ДЕНЕГ
+        async function sendMoney() {
+            let target = document.getElementById('transferTarget').value.trim().toLowerCase().replace('@', '').replace(/[^a-z0-0_]/g, '');
+            const amount = parseInt(document.getElementById('transferAmount').value);
+
+            if (!target || !amount || amount <= 0) {
+                return alert('Заполните корректно имя получателя и сумму!');
+            }
+            if (target === userId) {
+                return alert('Нельзя переводить деньги самому себе!');
+            }
+
+            // Проверка баланса отправителя
+            const senderSnap = await userRef.child('balance').once('value');
+            const senderBalance = senderSnap.val() || 0;
+
+            if (senderBalance < amount) {
+                return alert('Недостаточно Степлюринов на счете!');
+            }
+
+            const targetRef = db.ref('users/' + target);
+            const targetSnap = await targetRef.once('value');
+
+            if (!targetSnap.exists()) {
+                return alert(`Гражданин @${target} еще не заходил в банк!`);
+            }
+
+            // Транзакционный перевод
+            await userRef.child('balance').set(senderBalance - amount);
+            const targetBalance = (targetSnap.val().balance || 0) + amount;
+            await targetRef.child('balance').set(targetBalance);
+
+            // Логирование транзакции
+            const now = new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit'});
+            db.ref('transactions/' + userId).push({
+                type: 'out',
+                amount: amount,
+                note: `Кому: @${target} (${now})`
+            });
+            db.ref('transactions/' + target).push({
+                type: 'in',
+                amount: amount,
+                note: `От: @${userId} (${now})`
+            });
+
+            document.getElementById('transferTarget').value = '';
+            document.getElementById('transferAmount').value = '';
+            alert(`Успешно переведено ${amount.toLocaleString('ru-RU')} STL гражданину @${target}!`);
+            if(tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        }
+
+        // 5. ФУНКЦИИ ГЛАВЫ ЦЕНТРОБАНКА (АДМИН)
+        async function mintMoney() {
+            const amount = parseInt(document.getElementById('mintAmount').value);
+            if (!amount || amount <= 0) return alert('Введи сумму эмиссии!');
+
+            const snap = await userRef.child('balance').once('value');
+            const cur = snap.val() || 0;
+            await userRef.child('balance').set(cur + amount);
+
+            db.ref('transactions/' + userId).push({
+                type: 'in',
+                amount: amount,
+                note: `🖨️ Эмиссия ЦБ`
+            });
+
+            document.getElementById('mintAmount').value = '';
+            alert(`Успешно напечатано ${amount.toLocaleString('ru-RU')} STL на ваш счет!`);
         }
 
         function updateStats() {
             const rate = document.getElementById('newRate').value;
             const inf = document.getElementById('newInf').value;
-            if(rate) document.getElementById('statRate').innerText = rate + '%';
-            if(inf) document.getElementById('statInf').innerText = inf + '%';
-            alert('Экономические показатели ЦБ успешно обновлены!');
+            const bbd = document.getElementById('newBBD').value;
+            const tax = document.getElementById('newTax').value;
+
+            const updates = {};
+            if(rate) updates.rate = parseFloat(rate);
+            if(inf) updates.inf = parseFloat(inf);
+            if(bbd) updates.bbd = parseInt(bbd);
+            if(tax) updates.tax = parseInt(tax);
+
+            statsRef.update(updates);
+            alert('Макроэкономические параметры ЦБ обновлены у всех граждан!');
         }
 
-        function runBBD() {
-            alert('Безусловный базовый доход успешно выплачен всем гражданам!');
+        async function runBBD() {
+            const statsSnap = await statsRef.once('value');
+            const bbdVal = statsSnap.val()?.bbd || 1000;
+
+            const usersSnap = await db.ref('users').once('value');
+            const users = usersSnap.val() || {};
+
+            for (let uId in users) {
+                const cur = users[uId].balance || 0;
+                await db.ref(`users/${uId}/balance`).set(cur + bbdVal);
+                db.ref('transactions/' + uId).push({
+                    type: 'in',
+                    amount: bbdVal,
+                    note: `🟢 Выплата ББД`
+                });
+            }
+            alert(`ББД по ${bbdVal} STL успешно выплачен ВСЕМ гражданам!`);
         }
 
-        function runTax() {
-            alert('Подушевой налог удержан в Казну Степлеррейха!');
+        async function runTax() {
+            const statsSnap = await statsRef.once('value');
+            const taxVal = statsSnap.val()?.tax || 1000;
+
+            const usersSnap = await db.ref('users').once('value');
+            const users = usersSnap.val() || {};
+
+            for (let uId in users) {
+                const cur = users[uId].balance || 0;
+                const newBal = Math.max(0, cur - taxVal);
+                await db.ref(`users/${uId}/balance`).set(newBal);
+                db.ref('transactions/' + uId).push({
+                    type: 'out',
+                    amount: taxVal,
+                    note: `🔴 Налог Степлеррейха`
+                });
+            }
+            alert(`Подушевой налог по ${taxVal} STL списан у ВСЕХ граждан!`);
         }
     </script>
 </body>
