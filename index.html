@@ -388,23 +388,11 @@
 
         document.getElementById('usernameDisplay').innerText = `Гражданин: @${rawUsername}`;
 
-        // Проверка доступа
-        function checkAccess() {
-            if (Number(tgUser.id) === ADMIN_ID || localStorage.getItem('is_admin') === 'true') {
-                document.getElementById('adminPanel').style.display = 'block';
-            }
-            if (localStorage.getItem('is_govt') === 'true' || localStorage.getItem('is_admin') === 'true') {
-                document.getElementById('govtPanel').style.display = 'block';
-            }
-        }
-        checkAccess();
-
+        // Вход только по ПИН-коду (без автодоступа)
         function askAdminPin() {
             let pin = prompt("Введите ПИН-код Главы ЦБ:");
             if (pin === ADMIN_PIN) {
-                localStorage.setItem('is_admin', 'true');
                 document.getElementById('adminPanel').style.display = 'block';
-                document.getElementById('govtPanel').style.display = 'block';
                 alert("Доступ Главы ЦБ активирован!");
             } else {
                 alert("Неверный ПИН-код!");
@@ -413,8 +401,7 @@
 
         function askGovtPin() {
             let pin = prompt("Введите ПИН-код Правительства / Императора:");
-            if (pin === GOVT_PIN || pin === ADMIN_PIN) {
-                localStorage.setItem('is_govt', 'true');
+            if (pin === GOVT_PIN) {
                 document.getElementById('govtPanel').style.display = 'block';
                 alert("Кабинет Правительства активирован!");
             } else {
