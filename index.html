@@ -333,6 +333,12 @@
 
         <hr style="border-color: #334155; margin: 15px 0;">
 
+        <div style="font-size: 13px; margin-bottom: 8px;">🔥 Изъятие и уничтожение денег (Демонетизация)</div>
+        <input type="number" id="burnAmount" placeholder="Количество STL для сжигания из Казны ЦБ">
+        <button class="btn btn-danger" onclick="burnMoney()">🔥 Сжечь монеты из Казны ЦБ</button>
+
+        <hr style="border-color: #334155; margin: 15px 0;">
+
         <div style="font-size: 13px; margin-bottom: 8px;">🔄 Трансфер в Казну Правительства</div>
         <input type="number" id="transferToGovtAmount" placeholder="Сумма перевода в Казну Правительства (STL)">
         <button class="btn btn-gold" onclick="transferCbToGovt()">Перевести средства в Казну Правительства</button>
@@ -622,6 +628,21 @@
 
             document.getElementById('mintAmount').value = '';
             alert(`Успешно эмитировано ${amount.toLocaleString('ru-RU')} STL в КАЗНУ ЦЕНТРОБАНКА!`);
+        }
+
+        async function burnMoney() {
+            const amount = parseInt(document.getElementById('burnAmount').value);
+            if (!amount || amount <= 0) return alert('Введи сумму для уничтожения!');
+
+            const snap = await cbTreasuryRef.once('value');
+            const curCB = snap.val() || 0;
+
+            if (curCB < amount) return alert('В Казне ЦБ нет такого количества средств!');
+
+            await cbTreasuryRef.set(curCB - amount);
+
+            document.getElementById('burnAmount').value = '';
+            alert(`🔥 Изъято из обращения и успешно сожжено ${amount.toLocaleString('ru-RU')} STL!`);
         }
 
         async function transferCbToGovt() {
