@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Финансовый Портал Степлеррейха</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Firebase JS SDK (Compat mode) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f8fafc;
+            --accent-color: #38bdf8;
+            --danger-color: #ef4444;
+            --success-color: #22c55e;
+            --gold-color: #f59e0b;
+            --purple-color: #a855f7;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 16px;
+            padding-bottom: 40px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 20px;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .header p {
+            margin: 5px 0 0 0;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            border: 1px solid #334155;
+        }
+
+        .balance-card {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid var(--accent-color);
+            text-align: center;
+        }
+
+        .balance-title {
+            font-size: 14px;
+            color: #94a3b8;
+        }
+
+        .balance-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--text-color);
+            margin: 8px 0 2px 0;
+        }
+
+        .balance-currency {
+            color: var(--accent-color);
+        }
+
+        .balance-equiv {
+            font-size: 13px;
+            color: var(--gold-color);
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .role-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .pin-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid #334155;
+            color: #94a3b8;
+            font-size: 11px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pin-btn:hover {
+            border-color: var(--accent-color);
+            color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .stat-item {
+            background: #0f172a;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-val {
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--gold-color);
+        }
+
+        .stat-lbl {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        .btn {
+            width: 100%;
+            background: var(--accent-color);
+            color: #0f172a;
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: opacity 0.2s;
+        }
+
+        .btn:active {
+            opacity: 0.8;
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .btn-gold {
+            background: var(--gold-color);
+            color: #0f172a;
+        }
+
+        .btn-purple {
+            background: var(--purple-color);
+            color: white;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: white;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+
+        /* КАБИНЕТЫ */
+        .govt-panel {
+            border: 1px dashed var(--purple-color);
+            display: none;
+        }
+
+        .admin-panel {
+            border: 1px dashed var(--gold-color);
+            display: none;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .treasury-box {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .treasury-box-cb { border: 1px solid var(--gold-color); }
+        .treasury-box-govt { border: 1px solid var(--purple-color); }
+
+        .treasury-val {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .tx-list {
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+
+        .tx-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #334155;
+        }
+
+        .tx-plus { color: var(--success-color); }
+        .tx-minus { color: var(--danger-color); }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🏛️ ГОСУДАРСТВЕННЫЙ БАНК СТЕПЛЕРРЕЙХА</h1>
+        <p>Единая финансовая система Империи</p>
+    </div>
+
+    <!-- Карточка баланса -->
+    <div class="card balance-card">
+        <div class="balance-title">Ваш личный счет</div>
+        <div class="balance-value" id="userBalance">... <span class="balance-currency">STL</span></div>
+        <div class="balance-equiv" id="userEquiv">≈ ... г. Золота (Au) | $... USD</div>
+        <div style="font-size: 12px; color: #94a3b8;" id="usernameDisplay">Гражданин: Загрузка...</div>
+
+        <div class="role-buttons">
+            <button class="pin-btn" onclick="askGovtPin()">👑 Кабинет Правительства</button>
+            <button class="pin-btn" onclick="askAdminPin()">🏛️ Кабинет Главы ЦБ</button>
+        </div>
+    </div>
+
+    <!-- Макроэкономика -->
+    <div class="card">
+        <div style="font-weight: bold; margin-bottom: 10px; color: var(--accent-color);">📊 Государственные показатели</div>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-val" id="statRate">7.5%</div>
+                <div class="stat-lbl">Ключевая ставка</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-val" id="statInf">0.0%</div>
+                <div class="stat-lbl">Инфляция</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-val" id="statGold">1.25 г.</div>
+                <div class="stat-lbl">Золотой стандарт (Au)</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-val" id="statUSD">$100.00</div>
+                <div class="stat-lbl">Курс к USD</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-val" id="statBBD">1 000</div>
+                <div class="stat-lbl">ББД (доход)</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-val" id="statTax">1 000</div>
+                <div class="stat-lbl">Налог</div>
+            </div>
+            <div class="stat-item" style="grid-column: span 2;">
+                <div class="stat-val" id="statWelcome" style="color: var(--accent-color);">25 STL</div>
+                <div class="stat-lbl">Стартовый грант новым гражданам</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Перевод Степлюринов -->
+    <div class="card">
+        <div style="font-weight: bold; margin-bottom: 10px;">💸 Перевести Степлюрины</div>
+        <input type="text" id="transferTarget" placeholder="@username (без @, например: ivan)">
+        <input type="number" id="transferAmount" placeholder="Сумма (STL)">
+        <button class="btn" onclick="sendMoney()">Отправить Степлюрины</button>
+    </div>
+
+    <!-- История транзакций -->
+    <div class="card">
+        <div style="font-weight: bold; margin-bottom: 10px; color: #94a3b8;">📜 История операций</div>
+        <div class="tx-list" id="txHistory">
+            <div style="color: #64748b; text-align: center;">Загрузка истории...</div>
+        </div>
+    </div>
+
+    <!-- ==================== 👑 КАБИНЕТ ПРАВИТЕЛЬСТВА ==================== -->
+    <div class="card govt-panel" id="govtPanel">
+        <div class="panel-title" style="color: var(--purple-color);">
+            <span>👑 КАБИНЕТ ПРАВИТЕЛЬСТВА & ИМПЕРАТОРА</span>
+        </div>
+
+        <div class="treasury-box treasury-box-govt">
+            <div style="font-size: 12px; color: #94a3b8; margin-bottom: 4px;">🏛️ КАЗНА ПРАВИТЕЛЬСТВА</div>
+            <div class="treasury-val" style="color: var(--purple-color);" id="govtTreasuryBalance">0 STL</div>
+        </div>
+
+        <div style="font-size: 13px; margin-bottom: 8px;">📊 Регулирование Налогов и ББД</div>
+        <input type="number" id="govtTax" placeholder="Новый размер Налога (STL)">
+        <input type="number" id="govtBBD" placeholder="Новый размер ББД (STL)">
+        <button class="btn btn-purple" onclick="updateGovtStats()">Сохранить параметры Правительства</button>
+
+        <hr style="border-color: #334155; margin: 15px 0;">
+
+        <div style="font-size: 13px; margin-bottom: 8px;">📥 Сбор Налога в Казну Правительства</div>
+        <button class="btn btn-danger" onclick="runGovtTax()">Собрать Налог со всех граждан в Казну Правительства</button>
+
+        <hr style="border-color: #334155; margin: 15px 0;">
+
+        <div style="font-size: 13px; margin-bottom: 8px;">💸 Выплаты из Казны Правительства</div>
+        <button class="btn" style="background: #22c55e; color: white;" onclick="runGovtBBD()">Выплатить ББД всем из Казны Правительства</button>
+
+        <div style="margin-top: 10px; font-size: 13px; margin-bottom: 8px;">Выдать гос. грант/выплату гражданину:</div>
+        <input type="text" id="govtGrantTarget" placeholder="@username получателя">
+        <input type="number" id="govtGrantAmount" placeholder="Сумма выплат (STL)">
+        <button class="btn btn-purple" onclick="sendGovtGrant()">Выплатить из Казны Правительства</button>
+    </div>
+
+    <!-- ==================== 🏛️ КАБИНЕТ ГЛАВЫ ЦЕНТРОБАНКА ==================== -->
+    <div class="card admin-panel" id="adminPanel">
+        <div class="panel-title" style="color: var(--gold-color);">
+            <span>🏛️ КАБИНЕТ ГЛАВЫ ЦЕНТРОБАНКА</span>
+        </div>
+
+        <div class="treasury-box treasury-box-cb">
+            <div style="font-size: 12px; color: #94a3b8; margin-bottom: 4px;">🏛️ КАЗНА ЦЕНТРОБАНКА</div>
+            <div class="treasury-val" style="color: var(--gold-color);" id="cbTreasuryBalance">0 STL</div>
+        </div>
+
+        <div style="font-size: 13px; margin-bottom: 8px;">🖨️ Эмиссия денег (Печатный станок)</div>
+        <input type="number" id="mintAmount" placeholder="Количество STL для печати">
+        <button class="btn btn-gold" onclick="mintMoney()">Напечатать монеты в Казну ЦБ</button>
+
+        <hr style="border-color: #334155; margin: 15px 0;">
+
+        <div style="font-size: 13px; margin-bottom: 8px;">🔥 Изъятие и уничтожение денег (Демонетизация)</div>
+        <input type="number" id="burnAmount" placeholder="Количество STL для сжигания из Казны ЦБ">
+        <button class="btn btn-danger" onclick="burnMoney()">🔥 Сжечь монеты из Казны ЦБ</button>
+
+        <hr style="border-color: #334155; margin: 15px 0;">
+
+        <div style="font-size: 13px; margin-bottom: 8px;">🔄 Трансфер в Казну Правительства</div>
+        <input type="number" id="transferToGovtAmount" placeholder="Сумма перевода в Казну Правительства (STL)">
+        <button class="btn btn-gold" onclick="transferCbToGovt()">Перевести средства в Казну Правительства</button>
+
+        <hr style="border-color: #334155; margin: 15px 0;">
+
+        <div style="font-size: 13px; margin-bottom: 8px;">⚙️ Макроэкономическое регулирование</div>
+        <input type="number" step="0.1" id="newRate" placeholder="Ключевая ставка (%)">
+        <input type="number" step="0.1" id="newInf" placeholder="Инфляция (%)">
+        <input type="number" id="newBBD" placeholder="Размер ББД (STL)">
+        <input type="number" id="newTax" placeholder="Размер Налога (STL)">
+        <input type="number" id="newWelcomeBonus" placeholder="🎁 Стартовый баланс новых аккаунтов (STL)">
+        <input type="number" step="0.01" id="newGoldRate" placeholder="🪙 Курс к Золоту (г. Au на 1 STL)">
+        <input type="number" step="0.01" id="newUsdRate" placeholder="💵 Курс к Доллару ($ USD на 1 STL)">
+        <button class="btn" onclick="updateAllStats()">Обновить все параметры экономики</button>
+
+        <hr style="border-color: #334155; margin: 15px 0;">
+
+        <div style="font-size: 13px; margin-bottom: 8px;">💸 Прямой грант из Казны ЦБ гражданину</div>
+        <input type="text" id="cbGrantTarget" placeholder="@username получателя">
+        <input type="number" id="cbGrantAmount" placeholder="Сумма гранта (STL)">
+        <button class="btn btn-gold" onclick="sendCbGrant()">Выплатить грант из Казны ЦБ</button>
+    </div>
+
+    <script>
+        // 1. FIREBASE CONFIG
+        const firebaseConfig = {
+          apiKey: "AIzaSyD0OaGUYyCGFhSuPq72s6fWvnXlAsBGAnY",
+          authDomain: "stepbank-88208.firebaseapp.com",
+          databaseURL: "https://stepbank-88208-default-rtdb.europe-west1.firebasedatabase.app",
+          projectId: "stepbank-88208",
+          storageBucket: "stepbank-88208.firebasestorage.app",
+          messagingSenderId: "453754441602",
+          appId: "1:453754441602:web:20dc4c0cfd5944e446899b",
+          measurementId: "G-7YZWCZNK3X"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // 2. ДАННЫЕ И ПИН-КОДЫ
+        const tg = window.Telegram?.WebApp;
+        if(tg) tg.expand();
+
+        const ADMIN_ID = 5635709946;
+        const ADMIN_PIN = "7777"; // ПИН Главы ЦБ
+        const GOVT_PIN = "1111";  // ПИН Правительства / Императора
+
+        let tgUser = tg?.initDataUnsafe?.user;
+        if (!tgUser || !tgUser.id) {
+            let savedName = localStorage.getItem('stepler_username') || ('citizen_' + Math.floor(Math.random()*1000));
+            tgUser = { id: savedName, username: savedName, first_name: savedName };
+        }
+
+        const rawUsername = (tgUser.username || tgUser.first_name || 'user_' + tgUser.id).toLowerCase().replace(/[^a-z0-0_]/g, '');
+        const userId = rawUsername;
+
+        document.getElementById('usernameDisplay').innerText = `Гражданин: @${rawUsername}`;
+
+        function askAdminPin() {
+            let pin = prompt("Введите ПИН-код Главы ЦБ:");
+            if (pin === ADMIN_PIN) {
+                document.getElementById('adminPanel').style.display = 'block';
+                alert("Доступ Главы ЦБ активирован!");
+            } else {
+                alert("Неверный ПИН-код!");
+            }
+        }
+
+        function askGovtPin() {
+            let pin = prompt("Введите ПИН-код Правительства / Императора:");
+            if (pin === GOVT_PIN) {
+                document.getElementById('govtPanel').style.display = 'block';
+                alert("Кабинет Правительства активирован!");
+            } else {
+                alert("Неверный ПИН-код!");
+            }
+        }
+
+        // 3. ЖИВАЯ СИНХРОНИЗАЦИЯ DBN И ПОКАЗАТЕЛЕЙ
+        const userRef = db.ref('users/' + userId);
+        const statsRef = db.ref('global_stats');
+        const cbTreasuryRef = db.ref('treasury_balance');
+        const govtTreasuryRef = db.ref('govt_treasury_balance');
+
+        let currentUserBalance = 0;
+        let currentStats = {
+            rate: 7.5,
+            inf: 0.0,
+            bbd: 1000,
+            tax: 1000,
+            welcome_bonus: 25,
+            gold_rate: 1.25,
+            usd_rate: 100
+        };
+
+        function updateUserEquiv() {
+            const goldEquiv = (currentUserBalance * (currentStats.gold_rate || 1.25)).toLocaleString('ru-RU', {maximumFractionDigits: 2});
+            const usdEquiv = (currentUserBalance * (currentStats.usd_rate || 100)).toLocaleString('ru-RU', {maximumFractionDigits: 2});
+            const equivEl = document.getElementById('userEquiv');
+            if (equivEl) {
+                equivEl.innerText = `≈ ${goldEquiv} г. Золота (Au) | $${usdEquiv} USD`;
+            }
+        }
+
+        // Инициализация нового пользователя с текущим стартовым грантом
+        statsRef.once('value').then((snapshot) => {
+            const stats = snapshot.val() || {};
+            const initialBonus = stats.welcome_bonus !== undefined ? Number(stats.welcome_bonus) : 25;
+
+            userRef.child('balance').transaction((currentBalance) => {
+                if (currentBalance === null) return initialBonus;
+                return currentBalance;
+            });
+        });
+
+        userRef.child('username').set(rawUsername);
+
+        userRef.child('balance').on('value', (snapshot) => {
+            const val = snapshot.val() !== null ? snapshot.val() : 0;
+            currentUserBalance = val;
+            document.getElementById('userBalance').innerHTML = `${val.toLocaleString('ru-RU')} <span class="balance-currency">STL</span>`;
+            updateUserEquiv();
+        });
+
+        // Казна ЦБ
+        cbTreasuryRef.transaction((cur) => {
+            if (cur === null || cur === 1000000000) return 10000000000;
+            return cur;
+        });
+        cbTreasuryRef.on('value', (snapshot) => {
+            const val = snapshot.val() !== null ? snapshot.val() : 0;
+            document.getElementById('cbTreasuryBalance').innerText = `${val.toLocaleString('ru-RU')} STL`;
+        });
+
+        // Казна Правительства
+        govtTreasuryRef.transaction((cur) => {
+            if (cur === null || cur === 500000000) return 0;
+            return cur;
+        });
+        govtTreasuryRef.on('value', (snapshot) => {
+            const val = snapshot.val() !== null ? snapshot.val() : 0;
+            document.getElementById('govtTreasuryBalance').innerText = `${val.toLocaleString('ru-RU')} STL`;
+        });
+
+        // Слушатель глобальных показателей
+        statsRef.on('value', (snapshot) => {
+            const stats = snapshot.val() || {};
+            currentStats = {
+                rate: stats.rate !== undefined ? stats.rate : 7.5,
+                inf: stats.inf !== undefined ? stats.inf : 0.0,
+                bbd: stats.bbd !== undefined ? stats.bbd : 1000,
+                tax: stats.tax !== undefined ? stats.tax : 1000,
+                welcome_bonus: stats.welcome_bonus !== undefined ? stats.welcome_bonus : 25,
+                gold_rate: stats.gold_rate !== undefined ? stats.gold_rate : 1.25,
+                usd_rate: stats.usd_rate !== undefined ? stats.usd_rate : 100
+            };
+
+            document.getElementById('statRate').innerText = currentStats.rate + '%';
+            document.getElementById('statInf').innerText = currentStats.inf + '%';
+            document.getElementById('statBBD').innerText = Number(currentStats.bbd).toLocaleString('ru-RU');
+            document.getElementById('statTax').innerText = Number(currentStats.tax).toLocaleString('ru-RU');
+            document.getElementById('statGold').innerText = currentStats.gold_rate + ' г.';
+            document.getElementById('statUSD').innerText = '$' + Number(currentStats.usd_rate).toLocaleString('ru-RU');
+            document.getElementById('statWelcome').innerText = Number(currentStats.welcome_bonus).toLocaleString('ru-RU') + ' STL';
+
+            updateUserEquiv();
+        });
+
+        // История транзакций
+        db.ref('transactions/' + userId).limitToLast(10).on('value', (snapshot) => {
+            const txContainer = document.getElementById('txHistory');
+            txContainer.innerHTML = '';
+            const data = snapshot.val();
+            if (!data) {
+                txContainer.innerHTML = '<div style="color: #64748b; text-align: center;">Транзакций пока нет</div>';
+                return;
+            }
+            const items = Object.values(data).reverse();
+            items.forEach(tx => {
+                const div = document.createElement('div');
+                div.className = 'tx-item';
+                const isPlus = tx.type === 'in';
+                div.innerHTML = `
+                    <span>${tx.note}</span>
+                    <span class="${isPlus ? 'tx-plus' : 'tx-minus'}">${isPlus ? '+' : '-'}${Number(tx.amount).toLocaleString('ru-RU')} STL</span>
+                `;
+                txContainer.appendChild(div);
+            });
+        });
+
+        // 4. ОПЕРАЦИИ ГРАЖДАН
+        async function sendMoney() {
+            let target = document.getElementById('transferTarget').value.trim().toLowerCase().replace('@', '').replace(/[^a-z0-0_]/g, '');
+            const amount = parseInt(document.getElementById('transferAmount').value);
+
+            if (!target || !amount || amount <= 0) return alert('Заполните данные получателя!');
+            if (target === userId) return alert('Нельзя переводить самому себе!');
+
+            const senderSnap = await userRef.child('balance').once('value');
+            const senderBalance = senderSnap.val() || 0;
+
+            if (senderBalance < amount) return alert('Недостаточно Степлюринов!');
+
+            const targetRef = db.ref('users/' + target);
+            const targetSnap = await targetRef.once('value');
+            if (!targetSnap.exists()) return alert(`Гражданин @${target} еще не открыл счет!`);
+
+            await userRef.child('balance').set(senderBalance - amount);
+            const targetBalance = (targetSnap.val().balance || 0) + amount;
+            await targetRef.child('balance').set(targetBalance);
+
+            const now = new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit'});
+            db.ref('transactions/' + userId).push({ type: 'out', amount: amount, note: `Кому: @${target} (${now})` });
+            db.ref('transactions/' + target).push({ type: 'in', amount: amount, note: `От: @${userId} (${now})` });
+
+            document.getElementById('transferTarget').value = '';
+            document.getElementById('transferAmount').value = '';
+            alert(`Переведено ${amount.toLocaleString('ru-RU')} STL гражданину @${target}!`);
+        }
+
+        // ==================== 👑 ФУНКЦИИ ПРАВИТЕЛЬСТВА ====================
+        function updateGovtStats() {
+            const tax = document.getElementById('govtTax').value;
+            const bbd = document.getElementById('govtBBD').value;
+
+            const updates = {};
+            if(tax) updates.tax = parseInt(tax);
+            if(bbd) updates.bbd = parseInt(bbd);
+
+            if(Object.keys(updates).length === 0) return alert('Введите хотя бы один параметр!');
+
+            statsRef.update(updates);
+            alert('Параметры Правительства сохранены и опубликованы!');
+        }
+
+        async function runGovtTax() {
+            const statsSnap = await statsRef.once('value');
+            const taxVal = statsSnap.val()?.tax || 1000;
+
+            const usersSnap = await db.ref('users').once('value');
+            const users = usersSnap.val() || {};
+
+            let totalCollected = 0;
+
+            for (let uId in users) {
+                const cur = users[uId].balance || 0;
+                const actualTax = Math.min(cur, taxVal);
+                const newBal = cur - actualTax;
+                totalCollected += actualTax;
+
+                await db.ref(`users/${uId}/balance`).set(newBal);
+                db.ref('transactions/' + uId).push({
+                    type: 'out',
+                    amount: actualTax,
+                    note: `🔴 Налог в Казну Правительства`
+                });
+            }
+
+            const gSnap = await govtTreasuryRef.once('value');
+            const curGovtTreasury = gSnap.val() || 0;
+            await govtTreasuryRef.set(curGovtTreasury + totalCollected);
+
+            alert(`Собрано налогов на сумму ${totalCollected.toLocaleString('ru-RU')} STL и зачислено в КАЗНУ ПРАВИТЕЛЬСТВА!`);
+        }
+
+        async function runGovtBBD() {
+            const statsSnap = await statsRef.once('value');
+            const bbdVal = statsSnap.val()?.bbd || 1000;
+
+            const usersSnap = await db.ref('users').once('value');
+            const users = usersSnap.val() || {};
+            const userCount = Object.keys(users).length;
+            const totalNeeded = bbdVal * userCount;
+
+            const gSnap = await govtTreasuryRef.once('value');
+            const curGovt = gSnap.val() || 0;
+
+            if (curGovt < totalNeeded) {
+                return alert(`В Казне Правительства недостаточно средств! Нужно ${totalNeeded.toLocaleString('ru-RU')} STL. Запросите трансфер из ЦБ!`);
+            }
+
+            await govtTreasuryRef.set(curGovt - totalNeeded);
+
+            for (let uId in users) {
+                const cur = users[uId].balance || 0;
+                await db.ref(`users/${uId}/balance`).set(cur + bbdVal);
+                db.ref('transactions/' + uId).push({
+                    type: 'in',
+                    amount: bbdVal,
+                    note: `🟢 ББД от Правительства`
+                });
+            }
+            alert(`ББД по ${bbdVal} STL выплачен гражданам из Казны Правительства!`);
+        }
+
+        async function sendGovtGrant() {
+            let target = document.getElementById('govtGrantTarget').value.trim().toLowerCase().replace('@', '').replace(/[^a-z0-0_]/g, '');
+            const amount = parseInt(document.getElementById('govtGrantAmount').value);
+
+            if (!target || !amount || amount <= 0) return alert('Заполните все поля!');
+
+            const gSnap = await govtTreasuryRef.once('value');
+            const curGovt = gSnap.val() || 0;
+            if (curGovt < amount) return alert('Недостаточно средств в Казне Правительства!');
+
+            const targetRef = db.ref('users/' + target);
+            const targetSnap = await targetRef.once('value');
+            if (!targetSnap.exists()) return alert(`Гражданин @${target} еще не открыл счет!`);
+
+            await govtTreasuryRef.set(curGovt - amount);
+            const targetBal = (targetSnap.val().balance || 0) + amount;
+            await targetRef.child('balance').set(targetBal);
+
+            db.ref('transactions/' + target).push({
+                type: 'in',
+                amount: amount,
+                note: `👑 Выплата/Грант от Правительства`
+            });
+
+            document.getElementById('govtGrantTarget').value = '';
+            document.getElementById('govtGrantAmount').value = '';
+            alert(`Выплачено ${amount.toLocaleString('ru-RU')} STL гражданину @${target} из Казны Правительства!`);
+        }
+
+        // ==================== 🏛️ ФУНКЦИИ ГЛАВЫ ЦЕНТРОБАНКА ====================
+        async function mintMoney() {
+            const amount = parseInt(document.getElementById('mintAmount').value);
+            if (!amount || amount <= 0) return alert('Введи сумму эмиссии!');
+
+            const snap = await cbTreasuryRef.once('value');
+            const curCB = snap.val() || 0;
+            await cbTreasuryRef.set(curCB + amount);
+
+            document.getElementById('mintAmount').value = '';
+            alert(`Успешно эмитировано ${amount.toLocaleString('ru-RU')} STL в КАЗНУ ЦЕНТРОБАНКА!`);
+        }
+
+        async function burnMoney() {
+            const amount = parseInt(document.getElementById('burnAmount').value);
+            if (!amount || amount <= 0) return alert('Введи сумму для уничтожения!');
+
+            const snap = await cbTreasuryRef.once('value');
+            const curCB = snap.val() || 0;
+            if (curCB < amount) return alert('В Казне ЦБ нет такого количества средств!');
+
+            await cbTreasuryRef.set(curCB - amount);
+            document.getElementById('burnAmount').value = '';
+            alert(`🔥 Изъято из обращения и успешно сожжено ${amount.toLocaleString('ru-RU')} STL!`);
+        }
+
+        async function transferCbToGovt() {
+            const amount = parseInt(document.getElementById('transferToGovtAmount').value);
+            if (!amount || amount <= 0) return alert('Введи сумму трансфера!');
+
+            const snap = await cbTreasuryRef.once('value');
+            const curCB = snap.val() || 0;
+            if (curCB < amount) return alert('В Казне ЦБ нет такого количества средств!');
+
+            const gSnap = await govtTreasuryRef.once('value');
+            const curGovt = gSnap.val() || 0;
+
+            await cbTreasuryRef.set(curCB - amount);
+            await govtTreasuryRef.set(curGovt + amount);
+
+            document.getElementById('transferToGovtAmount').value = '';
+            alert(`Успешно переведено ${amount.toLocaleString('ru-RU')} STL из Казны ЦБ в Казну Правительства!`);
+        }
+
+        function updateAllStats() {
+            const rate = document.getElementById('newRate').value;
+            const inf = document.getElementById('newInf').value;
+            const bbd = document.getElementById('newBBD').value;
+            const tax = document.getElementById('newTax').value;
+            const welcome = document.getElementById('newWelcomeBonus').value;
+            const gold = document.getElementById('newGoldRate').value;
+            const usd = document.getElementById('newUsdRate').value;
+
+            const updates = {};
+            if(rate) updates.rate = parseFloat(rate);
+            if(inf) updates.inf = parseFloat(inf);
+            if(bbd) updates.bbd = parseInt(bbd);
+            if(tax) updates.tax = parseInt(tax);
+            if(welcome) updates.welcome_bonus = parseInt(welcome);
+            if(gold) updates.gold_rate = parseFloat(gold);
+            if(usd) updates.usd_rate = parseFloat(usd);
+
+            if(Object.keys(updates).length === 0) return alert('Заполните хотя бы одно поле для обновления!');
+
+            statsRef.update(updates);
+            alert('Макроэкономика успешно обновлена Главой ЦБ!');
+        }
+
+        async function sendCbGrant() {
+            let target = document.getElementById('cbGrantTarget').value.trim().toLowerCase().replace('@', '').replace(/[^a-z0-0_]/g, '');
+            const amount = parseInt(document.getElementById('cbGrantAmount').value);
+
+            if (!target || !amount || amount <= 0) return alert('Заполните все поля!');
+
+            const snap = await cbTreasuryRef.once('value');
+            const curCB = snap.val() || 0;
+            if (curCB < amount) return alert('В Казне ЦБ недостаточно средств!');
+
+            const targetRef = db.ref('users/' + target);
+            const targetSnap = await targetRef.once('value');
+            if (!targetSnap.exists()) return alert(`Гражданин @${target} еще не открыл счет!`);
+
+            await cbTreasuryRef.set(curCB - amount);
+            const targetBal = (targetSnap.val().balance || 0) + amount;
+            await targetRef.child('balance').set(targetBal);
+
+            db.ref('transactions/' + target).push({
+                type: 'in',
+                amount: amount,
+                note: `🏛️ Грант из Казны Центробанка`
+            });
+
+            document.getElementById('cbGrantTarget').value = '';
+            document.getElementById('cbGrantAmount').value = '';
+            alert(`Выплачено ${amount.toLocaleString('ru-RU')} STL гражданину @${target} из Казны ЦБ!`);
+        }
+    </script>
+</body>
+</html>
